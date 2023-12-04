@@ -92,4 +92,8 @@ defmodule Recto.SchemaTest do
     end
   end
 
+  test "default value" do
+    assert %Schema{}.name == "initial"
+  end
+
 end

@@ -66,9 +66,9 @@ defmodule Recto.Schema do
 
   ## API
 
-  defmacro field(name, type \\ :string) do
+  defmacro field(name, type \\ :string, opts \\ []) do
     quote do
-      Recto.Schema.__field__(__MODULE__, unquote(name), unquote(type))
+      Recto.Schema.__field__(__MODULE__, unquote(name), unquote(type), unquote(opts))
     end
   end
 
@@ -81,10 +81,10 @@ defmodule Recto.Schema do
   end
 
   @doc false
-  def __field__(mod, name, type) do
+  def __field__(mod, name, type, opts) do
      type = check_field_type!(mod, name, type)
 
-    define_field(mod, name, type)
+    define_field(mod, name, type, opts)
   end
 
   # TODO source, assoc, embed
@@ -95,14 +95,15 @@ defmodule Recto.Schema do
     end
   end
 
-  defp define_field(mod, name, type) do
+  defp define_field(mod, name, type, opts) do
     fields = Module.get_attribute(mod, :recto_struct_fields)
     if List.keyfind(fields, name, 0) do
       raise ArgumentError,
             "field #{name} already defined for #{inspect(mod)}"
     end
-    # TODO initial value
-    Module.put_attribute(mod, :recto_struct_fields, {name, "initial value"})
+
+    default_value = Keyword.get(opts, :default)
+    Module.put_attribute(mod, :recto_struct_fields, {name, default_value})
 
     Module.put_attribute(mod, :recto_fields, {name, type})
   end
