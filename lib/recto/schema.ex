@@ -120,8 +120,12 @@ defmodule Recto.Schema do
       base_type?(type) ->
         type
 
-      # TODO module type
-      #   Code.ensure_compiled(type) == {:module, type} ->
+      Code.ensure_compiled(type) == {:module, type} ->
+        cond do
+          function_exported?(type, :__schema__, 1) ->
+            raise ArgumentError,
+                  "schema #{inspect(type)} is not a valid type for field #{inspect(name)}."
+        end
 
       true ->
         raise ArgumentError,

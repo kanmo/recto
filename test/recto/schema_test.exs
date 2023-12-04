@@ -48,6 +48,48 @@ defmodule Recto.SchemaTest do
         end
       end
     end
+
+    assert_raise ArgumentError, "unknown type OMG for field :name", fn ->
+      defmodule SchemaUnknownType do
+        use Recto.Schema
+
+        schema do
+          field :name, OMG
+        end
+      end
+    end
+
+    assert_raise ArgumentError,
+                 ~r/schema Recto.SchemaTest.Schema is not a valid type for field :name/,
+                 fn ->
+                   defmodule SchemaInvalidFieldType do
+                     use Recto.Schema
+
+                     schema do
+                       field :name, Schema
+                     end
+                   end
+                 end
+
+    assert_raise ArgumentError, "unknown type :jsonb for field :name", fn ->
+      defmodule SchemaInvalidFieldType do
+        use Recto.Schema
+
+        schema do
+          field :name, :jsonb
+        end
+      end
+    end
+
+    assert_raise ArgumentError, "unknown type :jsonb for field :name", fn ->
+      defmodule SchemaInvalidFieldType do
+        use Recto.Schema
+
+        schema do
+          field :name, {:array, :jsonb}
+        end
+      end
+    end
   end
 
 end
