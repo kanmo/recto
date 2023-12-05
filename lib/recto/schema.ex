@@ -13,6 +13,8 @@ defmodule Recto.Schema do
     end
   end
 
+  @field_opts [:default, :autogenerate]
+
   defmacro schema(do: block) do
     schema(__CALLER__, block)
   end
@@ -83,6 +85,7 @@ defmodule Recto.Schema do
   @doc false
   def __field__(mod, name, type, opts) do
      type = check_field_type!(mod, name, type)
+     check_options!(type, opts, @field_opts, "field/3")
 
     define_field(mod, name, type, opts)
   end
@@ -148,6 +151,22 @@ defmodule Recto.Schema do
   end
 
   defp composite?(_type, _name), do: false
+
+  defp check_options!(_type, opts, valid, fun_arity) do
+    check_options!(opts, valid, fun_arity)
+  end
+
+  defp check_options!(opts, valid, fun_arity) do
+    case Enum.find(opts, fn {k, _} -> k not in valid end) do
+      nil ->
+        :ok
+
+      {k, _} ->
+        raise ArgumentError,
+              "invalid option #{inspect(k)} for #{fun_arity}"
+    end
+  end
+
 
 
   #defmacro version(number) do

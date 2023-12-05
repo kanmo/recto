@@ -6,7 +6,7 @@ defmodule Recto.SchemaTest do
 
     schema do
       field :id,  :integer
-      field :name, :string
+      field :name, :string, default: "fruit"
       field :age, :integer
       field :array, {:array, :string}
       field :map, {:map, :any}
@@ -38,6 +38,25 @@ defmodule Recto.SchemaTest do
     assert schema.map == %{a: 1, b: 2, c: 3}
   end
 
+  test "default value" do
+    assert %Schema{}.name == "fruit"
+  end
+
+  test "set module value" do
+    defmodule DataValue do
+      defstruct [:id, :name]
+    end
+
+    defmodule ModuleSetSchema do
+      schema do
+        field :data, DataValue
+      end
+    end
+
+    data = %ModuleSetSchema{data: %DataValue{id: 1, name: "Toji"}}
+    assert data.data == %DataValue{id: 1, name: "Toji"}
+  end
+
   test "invalid field type" do
     assert_raise ArgumentError, "invalid type {:nappa} for field :name", fn ->
       defmodule SchemaInvalidFieldType do
@@ -60,8 +79,8 @@ defmodule Recto.SchemaTest do
     end
 
     assert_raise ArgumentError,
-                 ~r/schema Recto.SchemaTest.Schema is not a valid type for field :name/,
-                 fn ->
+~r/schema Recto.SchemaTest.Schema is not a valid type for field :name/,
+    fn ->
                    defmodule SchemaInvalidFieldType do
                      use Recto.Schema
 
@@ -92,8 +111,17 @@ defmodule Recto.SchemaTest do
     end
   end
 
-  test "default value" do
-    assert %Schema{}.name == "initial"
-  end
 
+  test "invalid option for field" do
+    assert_raise ArgumentError, ~s/invalid option :starts_on for field\/3/, fn ->
+      defmodule SchemaInvalidOption do
+        use Recto.Schema
+
+        schema do
+          field :count, :integer, starts_on: 3
+        end
+      end
+    end
+  end
 end
+
