@@ -42,17 +42,20 @@ defmodule Recto.SchemaTest do
     assert %Schema{}.name == "fruit"
   end
 
+
+  defmodule DataValue do
+    defstruct [:id, :name]
+  end
+
+  defmodule ModuleSetSchema do
+    use Recto.Schema
+
+    schema do
+      field :data, DataValue
+    end
+  end
+
   test "set module value" do
-    defmodule DataValue do
-      defstruct [:id, :name]
-    end
-
-    defmodule ModuleSetSchema do
-      schema do
-        field :data, DataValue
-      end
-    end
-
     data = %ModuleSetSchema{data: %DataValue{id: 1, name: "Toji"}}
     assert data.data == %DataValue{id: 1, name: "Toji"}
   end

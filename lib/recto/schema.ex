@@ -129,6 +129,9 @@ defmodule Recto.Schema do
           function_exported?(type, :__schema__, 1) ->
             raise ArgumentError,
                   "schema #{inspect(type)} is not a valid type for field #{inspect(name)}."
+
+          true ->
+            type
         end
 
       true ->
