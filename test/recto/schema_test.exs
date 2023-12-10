@@ -4,7 +4,8 @@ defmodule Recto.SchemaTest do
   defmodule Schema do
     use Recto.Schema
 
-    schema do
+    @schema_version "1.0.0"
+    schema "test schema" do
       field :id,  :integer
       field :name, :string, default: "fruit"
       field :age, :integer
@@ -18,6 +19,8 @@ defmodule Recto.SchemaTest do
 #  doctest Schema
 
   test "schema metadata" do
+    assert Schema.__schema__(:version) == "1.0.0"
+    assert Schema.__schema__(:source) == "test schema"
     assert Schema.__schema__(:fields) == [:id, :name, :age, :array, :map]
   end
 
@@ -27,6 +30,14 @@ defmodule Recto.SchemaTest do
     assert Schema.__schema__(:type, :age) == :integer
     assert Schema.__schema__(:type, :array) == {:array, :string}
     assert Schema.__schema__(:type, :map) == {:map, :any}
+  end
+
+  test "reads and writes metadata" do
+    schema = %Schema{}
+    assert schema.__meta__.source == "test schema"
+    assert schema.__meta__.version == "1.0.0"
+    schema = Recto.put_meta(schema, source: "test schema 2")
+    assert schema.__meta__.source == "test schema 2"
   end
 
   test "schema attributes" do
@@ -50,7 +61,7 @@ defmodule Recto.SchemaTest do
   defmodule ModuleSetSchema do
     use Recto.Schema
 
-    schema do
+    schema "module value schema" do
       field :data, DataValue
     end
   end
@@ -65,7 +76,7 @@ defmodule Recto.SchemaTest do
       defmodule SchemaInvalidFieldType do
         use Recto.Schema
 
-        schema do
+        schema "invalid field schema" do
           field :name, {:nappa}
         end
       end
@@ -75,7 +86,7 @@ defmodule Recto.SchemaTest do
       defmodule SchemaUnknownType do
         use Recto.Schema
 
-        schema do
+        schema "unknown type schema" do
           field :name, OMG
         end
       end
@@ -87,7 +98,7 @@ defmodule Recto.SchemaTest do
                    defmodule SchemaInvalidFieldType do
                      use Recto.Schema
 
-                     schema do
+                     schema "invalid field schema" do
                        field :name, Schema
                      end
                    end
@@ -97,7 +108,7 @@ defmodule Recto.SchemaTest do
       defmodule SchemaInvalidFieldType do
         use Recto.Schema
 
-        schema do
+        schema "invalid type schema" do
           field :name, :jsonb
         end
       end
@@ -107,7 +118,7 @@ defmodule Recto.SchemaTest do
       defmodule SchemaInvalidFieldType do
         use Recto.Schema
 
-        schema do
+        schema "invalid field schema" do
           field :name, {:array, :jsonb}
         end
       end
@@ -120,7 +131,7 @@ defmodule Recto.SchemaTest do
       defmodule SchemaInvalidOption do
         use Recto.Schema
 
-        schema do
+        schema "invalid option schema" do
           field :count, :integer, starts_on: 3
         end
       end

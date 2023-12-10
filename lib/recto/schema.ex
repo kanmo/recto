@@ -1,25 +1,26 @@
 defmodule Recto.Schema do
   @moduledoc false
 
+  alias Recto.Schema.Metadata
+
   @doc false
   defmacro __using__(_) do
     quote do
-      import Recto.Schema, only: [schema: 1]
+      import Recto.Schema, only: [schema: 2]
 
-      @version 0
-      @expiry_time nil
-
+      # TODO expiry_time
+      @schema_version nil
       Module.register_attribute(__MODULE__, :recto_fields, accumulate: true)
     end
   end
 
   @field_opts [:default, :autogenerate]
 
-  defmacro schema(do: block) do
-    schema(__CALLER__, block)
+  defmacro schema(source, do: block) do
+    schema(__CALLER__, source, block)
   end
 
-  defp schema(caller, block) do
+  defp schema(caller, source, block) do
     prelude = quote do
       if line = Module.get_attribute(__MODULE__, :recto_schema_defined) do
         raise "schema already defined for #{inspect(__MODULE__)} on line: #{line}"
@@ -31,7 +32,17 @@ defmodule Recto.Schema do
       # @after_compile Recto.Schema
       Module.register_attribute(__MODULE__, :recto_struct_fields, accumulate: true)
 
-      # TODO put_attribute to save meta info
+      source = unquote(source)
+      version = @schema_version
+
+      meta = %Metadata{
+        state: :built,
+        source: source,
+        version: version,
+        schema: __MODULE__
+      }
+
+      Module.put_attribute(__MODULE__, :recto_struct_fields, {:__meta__, meta})
 
       try do
         import Recto.Schema
@@ -47,6 +58,8 @@ defmodule Recto.Schema do
 
       defstruct Enum.reverse(@recto_struct_fields)
 
+      def __schema__(:version), do: unquote(version)
+      def __schema__(:source), do: unquote(Macro.escape(source))
       def __schema__(:fields) do
         unquote(Enum.map(fields, &elem(&1, 0)))
       end
@@ -68,6 +81,12 @@ defmodule Recto.Schema do
 
   ## API
 
+  defmacro version() do
+    quote do
+      Recto.Schema.__meta__.version
+    end
+  end
+
   defmacro field(name, type \\ :string, opts \\ []) do
     quote do
       Recto.Schema.__field__(__MODULE__, unquote(name), unquote(type), unquote(opts))
@@ -77,6 +96,8 @@ defmodule Recto.Schema do
   @doc false
   def __loaded__(mod, struct_fields) do
     case Map.new([{:__struct__, mod} | struct_fields]) do
+      %{__meta__: meta} = struct ->
+        %{struct | __meta__: Map.put(meta, :state, :loaded)}
       struct ->
         struct
     end
