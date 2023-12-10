@@ -36,8 +36,13 @@ defmodule Recto.SchemaTest do
     schema = %Schema{}
     assert schema.__meta__.source == "test schema"
     assert schema.__meta__.version == "1.0.0"
+    assert schema.__meta__.state == :built
     schema = Recto.put_meta(schema, source: "test schema 2")
     assert schema.__meta__.source == "test schema 2"
+    schema = Recto.put_meta(schema, version: "1.0.1")
+    assert schema.__meta__.version == "1.0.1"
+    schema = Recto.put_meta(schema, state: :loaded)
+    assert schema.__meta__.state == :loaded
   end
 
   test "schema attributes" do

@@ -37,4 +37,12 @@ defmodule Recto do
     %{meta | source: source}
   end
 
+  defp put_meta(meta, :version, version) do
+    %{meta | version: version}
+  end
+
+  defp put_meta(meta, :state, state) do
+    %{meta | state: state}
+  end
+
 end
