@@ -10,7 +10,10 @@ defmodule Recto.Schema do
 
       # TODO expiry_time
       @schema_version nil
+      @timestamps_opts []
       Module.register_attribute(__MODULE__, :recto_fields, accumulate: true)
+      Module.register_attribute(__MODULE__, :recto_autogenerate, accumulate: true)
+      Module.register_attribute(__MODULE__, :recto_autoupdate, accumulate: true)
     end
   end
 
@@ -35,6 +38,9 @@ defmodule Recto.Schema do
       source = unquote(source)
       version = @schema_version
 
+      # Fix warnings
+      _ = @timestamps_opts
+
       meta = %Metadata{
         state: :built,
         source: source,
@@ -53,6 +59,8 @@ defmodule Recto.Schema do
     end
 
     postlude = quote unquote: false do
+      autogenerate = @recto_autogenerate |> Enum.reverse()
+      autoupdate = @recto_autoupdate |> Enum.reverse()
       fields = @recto_fields |> Enum.reverse()
       loaded = Recto.Schema.__loaded__(__MODULE__, @recto_struct_fields)
 
@@ -60,6 +68,11 @@ defmodule Recto.Schema do
 
       def __schema__(:version), do: unquote(version)
       def __schema__(:source), do: unquote(Macro.escape(source))
+      def __schema__(:autogenerate), do: unquote(Macro.escape(autogenerate))
+      def __schema__(:autoupdate), do: unquote(Macro.escape(autoupdate))
+      def __schema__(:autogenerate_fields),
+          do: unquote(Enum.flat_map(autogenerate, &elem(&1, 0)))
+
       def __schema__(:fields) do
         unquote(Enum.map(fields, &elem(&1, 0)))
       end
@@ -93,6 +106,11 @@ defmodule Recto.Schema do
     end
   end
 
+  defmacro timestamps(opts \\ []) do
+    quote bind_quoted: binding() do
+      Ecto.Schema.define_timestamps__(__MODULE__, Keyword.merge(@timestamps_opts, opts))
+    end
+
   @doc false
   def __loaded__(mod, struct_fields) do
     case Map.new([{:__struct__, mod} | struct_fields]) do
@@ -117,6 +135,29 @@ defmodule Recto.Schema do
     for {name, type} <- fields do
       {[:type, name], Macro.escape(type)}
     end
+  end
+
+  @doc false
+  def __define_timestamps__(mod, timestamps) do
+    inserted_at = Keyword.get(timestamps, :inserted_at, :inserted_at)
+    updated_at = Keyword.get(timestamps, :updated_at, :updated_at)
+    type = :naive_datetime
+    autogen = {Recto.Schema, :__timestamps__, [type]}
+
+    if inserted_at do
+      Recto.Schema.__field__(mod, inserted_at, type, [])
+    end
+
+    if updated_at do
+      Recto.Schema.__field__(mod, updated_at, type, [])
+      Module.put_attribute(mod, :recto_autoupdate,  {[updated_at], autogen})
+    end
+
+    with [_ | _]  = fields <- Enum.filter([inserted_at, updated_at], & &1) do
+      Module.put_attribute(mod, :recto_autogenerate, {fields, autogen})
+    end
+
+    :ok
   end
 
   defp define_field(mod, name, type, opts) do
@@ -161,8 +202,8 @@ defmodule Recto.Schema do
     end
   end
 
-
-  defp base_type?(atom), do: atom in [:integer, :string, :boolean, :any, :map, :array]
+  # TODO: utc_datetime
+  defp base_type?(atom), do: atom in [:integer, :string, :boolean, :any, :map, :array, :naive_datetime]
 
   defp composite?({composite, _} = type, name) do
     if composite in [:array, :map] do
@@ -190,14 +231,5 @@ defmodule Recto.Schema do
               "invalid option #{inspect(k)} for #{fun_arity}"
     end
   end
-
-
-
-  #defmacro version(number) do
-  #  quote do
-  #    Module.put_attribute(__MODULE__, :version, unquote(number))
-  #  end
-  #end
-
 
 end
