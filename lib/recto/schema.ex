@@ -108,8 +108,9 @@ defmodule Recto.Schema do
 
   defmacro timestamps(opts \\ []) do
     quote bind_quoted: binding() do
-      Ecto.Schema.define_timestamps__(__MODULE__, Keyword.merge(@timestamps_opts, opts))
+      Recto.Schema.__define_timestamps__(__MODULE__, Keyword.merge(@timestamps_opts, opts))
     end
+  end
 
   @doc false
   def __loaded__(mod, struct_fields) do

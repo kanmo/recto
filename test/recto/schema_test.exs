@@ -11,6 +11,8 @@ defmodule Recto.SchemaTest do
       field :age, :integer
       field :array, {:array, :string}
       field :map, {:map, :any}
+
+      timestamps()
     end
   end
 
@@ -21,7 +23,7 @@ defmodule Recto.SchemaTest do
   test "schema metadata" do
     assert Schema.__schema__(:version) == "1.0.0"
     assert Schema.__schema__(:source) == "test schema"
-    assert Schema.__schema__(:fields) == [:id, :name, :age, :array, :map]
+    assert Schema.__schema__(:fields) == [:id, :name, :age, :array, :map, :inserted_at, :updated_at]
   end
 
   test "types metadata" do
@@ -30,6 +32,10 @@ defmodule Recto.SchemaTest do
     assert Schema.__schema__(:type, :age) == :integer
     assert Schema.__schema__(:type, :array) == {:array, :string}
     assert Schema.__schema__(:type, :map) == {:map, :any}
+  end
+
+  test "autogen fields" do
+    assert Schema.__schema__(:autogenerate_fields) == [:inserted_at, :updated_at]
   end
 
   test "reads and writes metadata" do
