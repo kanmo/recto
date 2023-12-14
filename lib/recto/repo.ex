@@ -35,7 +35,24 @@ defmodule Recto.Repo do
         end
       end
 
-      def repo_init(type, repo, config) do
+      def __adapter__ do
+        @adapter
+      end
+
+      def child_spec(opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, [opts]},
+          type: :supervisor
+        }
+      end
+
+      def start_link(opts \\ []) do
+        Recto.Repo.Supervisor.start_link(__MODULE__, @otp_app, @adapter, opts)
+      end
+
+
+      defp repo_init(type, repo, config) do
         if Code.ensure_loaded?(repo) and function_exported?(repo, :init, 2) do
           repo.init(type, config)
         else
@@ -43,4 +60,5 @@ defmodule Recto.Repo do
         end
       end
     end
+  end
 end
