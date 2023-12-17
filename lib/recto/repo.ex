@@ -22,17 +22,8 @@ defmodule Recto.Repo do
       @adapter adapter
 
       def config do
-        # retrieve the runtime configuration
-        config = Application.get_env(otp_app, __MODULE__, []) |> Keyword.merge([otp_app: otp_app])
-        case repo_init(type, repo, config) do
-          {:ok, config} ->
-            {url, config} = Keyword.pop(config, :url)
-            # TODO: parse_url
-#            {:ok, Keyword.merge(config, parse_url(url || ""))}
-            config
-          :ignore ->
-            raise ArgumentError, "configuration setting is invalid"
-        end
+        {:ok, config} = Recto.Repo.Supervisor.runtime_config(:runtime, __MODULE__, @otp_app, [])
+        config
       end
 
       def __adapter__ do
@@ -40,6 +31,7 @@ defmodule Recto.Repo do
       end
 
       def child_spec(opts) do
+        dbg()
         %{
           id: __MODULE__,
           start: {__MODULE__, :start_link, [opts]},
@@ -48,17 +40,10 @@ defmodule Recto.Repo do
       end
 
       def start_link(opts \\ []) do
+        dbg()
         Recto.Repo.Supervisor.start_link(__MODULE__, @otp_app, @adapter, opts)
       end
 
-
-      defp repo_init(type, repo, config) do
-        if Code.ensure_loaded?(repo) and function_exported?(repo, :init, 2) do
-          repo.init(type, config)
-        else
-          {:ok, config}
-        end
-      end
     end
   end
 end
