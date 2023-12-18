@@ -35,6 +35,7 @@ defmodule Recto.Repo.Supervisor do
 
   @doc false
   def init({name, repo, otp_app, adapter, opts}) do
+    dbg()
     case runtime_config(:supervisor, repo, otp_app, opts) do
       {:ok, opts} ->
 #        {:ok, child} = adapter.init(opts)
@@ -49,20 +50,27 @@ defmodule Recto.Repo.Supervisor do
   end
 
   def start_child({mod, fun, args}, name, adapter) do
-    dbg()
+
     case apply(mod, fun, args) do
       {:ok, pid} ->
+        meta = %{pid: pid, adapter: adapter}
+        s_pid = self()
+        dbg()
+        Recto.Repo.Registry.associate(s_pid, name, meta)
         {:ok, pid}
+
       other ->
         other
     end
   end
 
   defp wrap_child_spec({id, start, restart, shutdown, type, mods}, args) do
-    {id, {__MODULE__, :start_child, [start | args]}, restart, shutdown, type, mods}
+    {id,
+      {__MODULE__, :start_child, [start | args]}, restart, shutdown, type, mods}
   end
 
   defp wrap_child_spec(%{start: start} = spec, args) do
+    dbg()
     %{spec | start: {__MODULE__, :start_child, [start | args]}}
   end
 end
