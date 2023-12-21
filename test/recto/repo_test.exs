@@ -10,7 +10,7 @@ defmodule Recto.RepoTest do
 
     schema "my_schema" do
       field :x, :string
-      field :y, :binary
+      field :y, :boolean
       field :array, {:array, :string}
       field :map, {:map, :string}
     end
@@ -24,16 +24,25 @@ defmodule Recto.RepoTest do
            }
   end
 
-  describe "get" do
-    test "raises on bad inputs" do
-      TestRepo.get(MySchema, 123)
-
-      message = "cannot perform Ecto.Repo.get/2 because the given value is nil"
-
-      assert_raise ArgumentError, message, fn ->
-        TestRepo.get(MySchema, nil)
-      end
+  describe "set" do
+    test "set schema data" do
+      schema = %MySchema{x: "test", y: true, array: ["a", "r", "r", "a", "y"], map: %{key: "val"}}
+      ## TODO autogenerate id
+      assert TestRepo.set("key", schema) == {:ok, "OK"}
     end
   end
 
+  describe "get" do
+    setup do
+      schema = %MySchema{x: "test", y: true, array: ["a", "r", "r", "a", "y"], map: %{key: "val"}}
+      ## TODO autogenerate id
+      TestRepo.set("key", schema)
+      {:ok, %{schema: schema}}
+    end
+
+    test "get schema data", %{schema: s} do
+      assert TestRepo.get(MySchema, "key") == {:ok, s}
+    end
+  end
 end
+

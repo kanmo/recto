@@ -10,7 +10,6 @@ defmodule Recto.TestRepo do
   require Logger
 
   def init(_type, opts) do
-    dbg()
     {:ok, opts}
   end
 end

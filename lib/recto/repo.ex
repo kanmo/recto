@@ -58,11 +58,25 @@ defmodule Recto.Repo do
 #        Process.put({__MODULE__, :dynamic_repo}, dynamnic) || @default_dynamic_repo
 #      end
 
-      def get(schema, id, opts \\ []) do
+      def set(key, schema, opts \\ []) do
+        repo = @default_dynamic_repo
+        %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
+
+        data = :erlang.term_to_binary(schema)
+        adapter.command(:rectoredix, ["SET", key, data])
+      end
+
+      def get(schema, key, opts \\ []) do
         repo = @default_dynamic_repo
 
-        adapter = Recto.Repo.registry.lookup(repo)
-        dbg()
+        %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
+        case adapter.command(:rectoredix, ["GET", key]) do
+          {:ok, binary} ->
+            {:ok, :erlang.binary_to_term(binary)}
+
+          other ->
+            other
+        end
       end
     end
 
