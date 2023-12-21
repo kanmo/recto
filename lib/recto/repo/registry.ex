@@ -32,9 +32,9 @@ defmodule Recto.Repo.Registry do
 
   @impl true
   def handle_call({:associate, pid, name, value}, _from, table) do
-    dbg()
     ref = Process.monitor(pid)
     true = :ets.insert(table, {pid, ref, name, value})
-    {:replay, :ok, table}
+    {:reply, :ok, table}
   end
+
 end
