@@ -40,7 +40,6 @@ defmodule Recto.Repo do
       end
 
       def start_link(opts \\ []) do
-        dbg()
         Recto.Repo.Supervisor.start_link(__MODULE__, @otp_app, @adapter, opts)
       end
 
@@ -79,6 +78,47 @@ defmodule Recto.Repo do
         end
       end
     end
-
   end
+
+  @doc group: "User callbacks"
+  @callback init(context :: :supervisor | :runtime, config :: Keyword.t()) ::
+              {:ok, Keyword.t()} | :ignore
+
+  @doc """
+  Returns the adapter tied to the repository.
+  """
+  @doc group: "Runtime API"
+  @callback __adapter__ :: Ecto.Adapter.t()
+
+  @doc """
+  Returns the adapter configuration stored in the `:otp_app` environment.
+
+  If the `c:init/2` callback is implemented in the repository,
+  it will be invoked with the first argument set to `:runtime`.
+  """
+  @doc group: "Runtime API"
+  @callback config() :: Keyword.t()
+
+  @doc """
+  Starts any connection pooling or supervision and return `{:ok, pid}`
+  or just `:ok` if nothing needs to be done.
+
+  Returns `{:error, {:already_started, pid}}` if the repo is already
+  started or `{:error, term}` in case anything else goes wrong.
+
+  ## Options
+
+  See the configuration in the moduledoc for options shared between adapters,
+  """
+  @doc group: "Runtime API"
+  @callback start_link(opts :: Keyword.t()) ::
+              {:ok, pid}
+              | {:error, {:already_started, pid}}
+              | {:error, term}
+end
+
+defmodule Recto.Adapter do
+  @callback command(connection :: GenServer.server(), command :: [String.Chars.t()], opts :: Keyword.t()) ::
+              {:ok, any()}
+              | {:error, atom()}
 end
