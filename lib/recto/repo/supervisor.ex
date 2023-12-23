@@ -3,18 +3,17 @@ defmodule Recto.Repo.Supervisor do
   use Supervisor
 
   def start_link(repo, otp_app, adapter, opts) do
-    name= Keyword.get(opts, :name, repo)
+    name = Keyword.get(opts, :name, repo)
     sup_opts = if name, do: [name: name], else: []
 
     Supervisor.start_link(__MODULE__, {name, repo, otp_app, adapter, opts}, sup_opts)
   end
 
-  def runtime_config(type, repo, otp_app, _opts) do
-    config = Application.get_env(otp_app, __MODULE__, []) |> Keyword.merge([otp_app: otp_app])
-
+  def runtime_config(type, repo, otp_app, opts) do
+    config = Application.get_env(otp_app, repo, [])
     case repo_init(type, repo, config) do
       {:ok, config} ->
-        {_url, config} = Keyword.pop(config, :url)
+        {_url, config} = Keyword.pop(config, :host)
         # TODO: parse_url
         #            {:ok, Keyword.merge(config, parse_url(url || ""))}
         {:ok, config}
@@ -37,11 +36,10 @@ defmodule Recto.Repo.Supervisor do
   @doc false
   def init({name, repo, otp_app, adapter, opts}) do
     case runtime_config(:supervisor, repo, otp_app, opts) do
-      {:ok, _opts} ->
-#        {:ok, child} = adapter.init(opts)
-# TODO opts
-        child = adapter.child_spec(name: :rectoredix)
-        child_spec = wrap_child_spec(child, [name, adapter])
+      {:ok, opts} ->
+        opts = Keyword.merge(opts, [name: adapter])
+        {:ok, adapter_spec} = adapter.init(opts)
+        child_spec = wrap_child_spec(adapter_spec, [name, adapter])
         Supervisor.init([child_spec], strategy: :one_for_one, max_restarts: 0)
 
       :ignore ->
@@ -50,21 +48,16 @@ defmodule Recto.Repo.Supervisor do
   end
 
   def start_child({mod, fun, args}, name, adapter) do
-
+    # start adapter
     case apply(mod, fun, args) do
-      {:ok, pid} ->
-        meta = %{pid: pid, adapter: adapter}
-        s_pid = self()
-        Recto.Repo.Registry.associate(s_pid, name, meta)
-        {:ok, pid}
+      {:ok, adapter_pid} ->
+        meta = %{pid: adapter_pid, adapter: adapter}
+        Recto.Repo.Registry.associate(self(), name, meta)
+        {:ok, adapter_pid}
 
       other ->
         other
     end
-  end
-
-  defp wrap_child_spec({id, start, restart, shutdown, type, mods}, args) do
-    {id, {__MODULE__, :start_child, [start | args]}, restart, shutdown, type, mods}
   end
 
   defp wrap_child_spec(%{start: start} = spec, args) do

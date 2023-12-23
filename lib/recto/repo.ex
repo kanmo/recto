@@ -6,6 +6,7 @@ defmodule Recto.Repo do
     quote bind_quoted: [opts: opts] do
       @behaviour Recto.Repo
 
+      # TODO: compile time check for adapter
       otp_app = Keyword.fetch!(opts, :otp_app)
       adapter = opts[:adapter]
 
@@ -17,6 +18,7 @@ defmodule Recto.Repo do
         raise ArgumentError, "adapter #{inspect adapter} was not compiled, " <>
                              "ensure it is correct and it is included as a project dependency"
       end
+      # TODO end
 
       @otp_app otp_app
       @adapter adapter
@@ -62,14 +64,14 @@ defmodule Recto.Repo do
         %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
 
         data = :erlang.term_to_binary(schema)
-        adapter.command(:rectoredix, ["SET", key, data])
+        adapter.command(adapter, ["SET", key, data])
       end
 
       def get(schema, key, opts \\ []) do
         repo = @default_dynamic_repo
 
         %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
-        case adapter.command(:rectoredix, ["GET", key]) do
+        case adapter.command(adapter, ["GET", key]) do
           {:ok, binary} ->
             {:ok, :erlang.binary_to_term(binary)}
 
@@ -118,6 +120,11 @@ defmodule Recto.Repo do
 end
 
 defmodule Recto.Adapter do
+  @doc """
+  Initializes the adapter supervision tree by returning the children and adapter metadata.
+  """
+  @callback init(config :: Keyword.t()) :: {:ok, :supervisor.child_spec(), opts :: Keyword.t()}
+
   @callback command(connection :: GenServer.server(), command :: [String.Chars.t()], opts :: Keyword.t()) ::
               {:ok, any()}
               | {:error, atom()}

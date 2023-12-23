@@ -4,10 +4,17 @@ defmodule Recto.TestAdapter do
     Redix.command(conn, command, opts)
   end
 
-  def child_spec(opts) do
-    Redix.child_spec(opts)
+  def init(opts) do
+    {:ok, Redix.child_spec(opts)}
   end
 end
+
+
+# expect below settings in config.exs
+# config :recto, Recto.TestRepo,
+#   host: "localhost",
+#   port: 6379
+Application.put_env(:recto, Recto.TestRepo, [host: "localhost", port: 6379])
 
 defmodule Recto.TestRepo do
   use Recto.Repo, otp_app: :recto, adapter: Recto.TestAdapter
