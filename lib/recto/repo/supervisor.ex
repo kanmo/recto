@@ -9,7 +9,7 @@ defmodule Recto.Repo.Supervisor do
     Supervisor.start_link(__MODULE__, {name, repo, otp_app, adapter, opts}, sup_opts)
   end
 
-  def runtime_config(type, repo, otp_app, opts) do
+  def runtime_config(type, repo, otp_app, _opts) do
     config = Application.get_env(otp_app, repo, [])
     case repo_init(type, repo, config) do
       {:ok, config} ->

@@ -6,6 +6,9 @@ defmodule Recto.Repo do
     quote bind_quoted: [opts: opts] do
       @behaviour Recto.Repo
 
+      alias Recto.Query.Binary
+      alias Recto.Query.Common
+
       # TODO: compile time check for adapter
       otp_app = Keyword.fetch!(opts, :otp_app)
       adapter = opts[:adapter]
@@ -60,24 +63,56 @@ defmodule Recto.Repo do
 #      end
 
       def set(key, schema, opts \\ []) do
-        repo = @default_dynamic_repo
-        %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
-
+        adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        adapter.command(adapter, ["SET", key, data])
+        case adapter.command(adapter, Binary.to_set_query(key, data, opts)) do
+          success = {:ok, "OK"} -> success
+          other -> {:error, other}
+        end
       end
 
-      def get(schema, key, opts \\ []) do
-        repo = @default_dynamic_repo
+      def get(key, opts \\ []) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Binary.to_get_query(key)) do
+          {:ok, nil} -> {:ok, nil}
 
-        %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
-        case adapter.command(adapter, ["GET", key]) do
           {:ok, binary} ->
+            # TODO: check schema type
             {:ok, :erlang.binary_to_term(binary)}
 
           other ->
-            other
+            {:error, other}
         end
+      end
+
+      def expire(key, seconds, opts \\ []) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Common.to_expire_query(key, seconds, opts)) do
+          {:ok, 1} -> :ok
+          other -> {:error, other}
+        end
+      end
+
+      def exists(keys) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Common.to_exists_query(keys)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def del(keys) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Common.to_del_query(keys)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      defp find_adapter() do
+        repo = @default_dynamic_repo
+        %{adapter: adapter} = Recto.Repo.Registry.lookup(repo)
+        adapter
       end
     end
   end
