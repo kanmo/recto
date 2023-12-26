@@ -2,11 +2,11 @@ defmodule Recto.Query do
   @moduledoc false
 
   defmodule List do
-    def to_rpush(key, value), do: ["RPUSH", key, value]
-    def to_lpop(key), do: ["LPOP", key]
-    def to_lrange(key, start, stop), do: ["LRANGE", key, start, stop]
-    def to_llen(key), do: ["LLEN", key]
-    def to_ltrim(key, start, stop), do: ["LTRIM", key, start, stop]
+    def to_rpush_query(key, value), do: ["RPUSH", key, value]
+    def to_lpop_query(key), do: ["LPOP", key]
+    def to_lrange_query(key, start, stop), do: ["LRANGE", key, start, stop]
+    def to_llen_query(key), do: ["LLEN", key]
+    def to_ltrim_query(key, start, stop), do: ["LTRIM", key, start, stop]
   end
 
   defmodule Binary do

@@ -8,6 +8,7 @@ defmodule Recto.Repo do
 
       alias Recto.Query.Binary
       alias Recto.Query.Common
+      alias Recto.Query.List
 
       # TODO: compile time check for adapter
       otp_app = Keyword.fetch!(opts, :otp_app)
@@ -106,6 +107,43 @@ defmodule Recto.Repo do
         case adapter.command(adapter, Common.to_del_query(keys)) do
           success = {:ok, num} -> success
           other -> {:error, other}
+        end
+      end
+
+      def rpush(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+        case adapter.command(adapter, List.to_rpush_query(key, data)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def lpop(key) do
+        adapter = find_adapter()
+        case adapter.command(adapter, List.to_lpop_query(key)) do
+          success = {:ok, nil} ->
+            success
+
+          {:ok, value} ->
+            {:ok, :erlang.binary_to_term(value)}
+
+          other ->
+            {:error, other}
+        end
+      end
+
+      def lrange(key, start, stop) do
+        adapter = find_adapter()
+        case adapter.command(adapter, List.to_lrange_query(key, start, stop)) do
+          success = {:ok, nil} ->
+            success
+
+          {:ok, values} ->
+            {:ok, Enum.map(values, &(:erlang.binary_to_term(&1)))}
+
+          other ->
+            {:error, other}
         end
       end
 
