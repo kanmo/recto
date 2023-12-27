@@ -9,6 +9,7 @@ defmodule Recto.Repo do
       alias Recto.Query.Binary
       alias Recto.Query.Common
       alias Recto.Query.List
+      alias Recto.Query.Set
 
       # TODO: compile time check for adapter
       otp_app = Keyword.fetch!(opts, :otp_app)
@@ -63,6 +64,8 @@ defmodule Recto.Repo do
 #        Process.put({__MODULE__, :dynamic_repo}, dynamnic) || @default_dynamic_repo
 #      end
 
+      # Binary
+
       def set(key, schema, opts \\ []) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
@@ -85,6 +88,8 @@ defmodule Recto.Repo do
             {:error, other}
         end
       end
+
+      # Common
 
       def expire(key, seconds, opts \\ []) do
         adapter = find_adapter()
@@ -109,6 +114,8 @@ defmodule Recto.Repo do
           other -> {:error, other}
         end
       end
+
+      # List
 
       def rpush(key, schema) do
         adapter = find_adapter()
@@ -146,6 +153,56 @@ defmodule Recto.Repo do
             {:error, other}
         end
       end
+
+      # Set
+
+      def smembers(key) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Set.to_smembers_query(key)) do
+          {:ok, values} ->
+            {:ok, Enum.map(values, &(:erlang.binary_to_term(&1)))}
+
+          other ->
+            {:error, other}
+        end
+      end
+
+      def sadd(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+        case adapter.command(adapter, Set.to_sadd_query(key, data)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def srem(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+        case adapter.command(adapter, Set.to_srem_query(key, data)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def sismember(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+        case adapter.command(adapter, Set.to_sismember_query(key, data)) do
+          {:ok, 0} -> {:ok, false}
+          {:ok, 1} -> {:ok, true}
+          other -> {:error, other}
+        end
+      end
+
+      def scard(key) do
+        adapter = find_adapter()
+        case adapter.command(adapter, Set.to_scard_query(key)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
 
       defp find_adapter() do
         repo = @default_dynamic_repo

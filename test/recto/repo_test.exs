@@ -171,6 +171,103 @@ defmodule Recto.RepoTest do
       assert TestRepo.lrange("key", 0, -1) == {:ok, [s, s2, s3]}
     end
   end
+
+  describe "sadd" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      {:ok, %{schema: schema}}
+    end
+
+    test "add schema data to set", %{schema: s} do
+      assert TestRepo.sadd("key", s) == {:ok, 1}
+      assert TestRepo.sadd("key", s) == {:ok, 0}
+    end
+  end
+
+  describe "srem" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.sadd("key", schema)
+      {:ok, %{schema: schema}}
+    end
+
+    test "remove schema data from set", %{schema: s} do
+      assert TestRepo.srem("key", s) == {:ok, 1}
+      assert TestRepo.srem("key", s) == {:ok, 0}
+    end
+  end
+
+  describe "sismember" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.sadd("key", schema)
+      {:ok, %{schema: schema}}
+    end
+
+    test "returns true if schema data is a member of set", %{schema: s} do
+      assert TestRepo.sismember("key", s) == {:ok, true}
+    end
+
+    test "returns false if schema data is not a member of set" do
+      assert TestRepo.sismember("key", %MySchema{x: "test2", y: true}) == {:ok, false}
+    end
+  end
+
+  describe "scard" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.sadd("key", schema)
+      {:ok, %{schema: schema}}
+    end
+
+    test "returns the set cardinality (number of elements) of the set stored at key" do
+      assert TestRepo.scard("key") == {:ok, 1}
+    end
+
+    test "returns zero if key does not exist" do
+      assert TestRepo.scard("no-such-key") == {:ok, 0}
+    end
+
+  end
+
+  describe "smembers" do
+    # Test Repo.smembers
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.sadd("key", schema)
+      TestRepo.sadd("key", schema2)
+      {:ok, %{schema: schema, schema2: schema2}}
+    end
+
+    test "returns all members of the set value stored at key", %{schema: s, schema2: s2} do
+      assert TestRepo.smembers("key") == {:ok, [s, s2]}
+    end
+
+    test "returns nil when no such key is specified" do
+      assert TestRepo.smembers("no-such-key") == {:ok, []}
+    end
+  end
 end
 
 

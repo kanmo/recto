@@ -9,6 +9,14 @@ defmodule Recto.Query do
     def to_ltrim_query(key, start, stop), do: ["LTRIM", key, start, stop]
   end
 
+  defmodule Set do
+    def to_smembers_query(key), do: ["SMEMBERS", key]
+    def to_sadd_query(key, value), do: ["SADD", key, value]
+    def to_srem_query(key, value), do: ["SREM", key, value]
+    def to_sismember_query(key, value), do: ["SISMEMBER", key, value]
+    def to_scard_query(key), do: ["SCARD", key]
+  end
+
   defmodule Binary do
     @set_options ~w(EX NX XX)a
 
