@@ -9,10 +9,10 @@ defmodule Recto.RepoTest do
     use Recto.Schema
 
     schema "my_schema" do
-      field :x, :string
-      field :y, :boolean
-      field :array, {:array, :string}
-      field :map, {:map, :string}
+      field(:x, :string)
+      field(:y, :boolean)
+      field(:array, {:array, :string})
+      field(:map, {:map, :string})
     end
   end
 
@@ -243,7 +243,6 @@ defmodule Recto.RepoTest do
     test "returns zero if key does not exist" do
       assert TestRepo.scard("no-such-key") == {:ok, 0}
     end
-
   end
 
   describe "smembers" do
@@ -261,42 +260,299 @@ defmodule Recto.RepoTest do
     end
 
     test "returns all members of the set value stored at key", %{schema: s, schema2: s2} do
-      assert TestRepo.smembers("key") == {:ok, [s, s2]}
+      assert {:ok, result} = TestRepo.smembers("key")
+      assert Enum.sort(result, &(&1.x <= &2.x)) == [s, s2]
     end
 
     test "returns nil when no such key is specified" do
       assert TestRepo.smembers("no-such-key") == {:ok, []}
     end
   end
+
+  describe "zadd" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      {:ok, %{schema: schema}}
+    end
+
+    test "add schema data to sorted set", %{schema: s} do
+      assert TestRepo.zadd("key", 1, s) == {:ok, 1}
+      assert TestRepo.zadd("key", 1, s) == {:ok, 0}
+    end
+  end
+
+  describe "zrem" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      {:ok, %{schema: schema}}
+    end
+
+    test "remove schema data from sorted set", %{schema: s} do
+      assert TestRepo.zrem("key", s) == {:ok, 1}
+      assert TestRepo.zrem("key", s) == {:ok, 0}
+    end
+  end
+
+  describe "zrank" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 2, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 3, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "returns the rank of member in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrank("key", s) == {:ok, 0}
+      assert TestRepo.zrank("key", s2) == {:ok, 1}
+      assert TestRepo.zrank("key", s3) == {:ok, 2}
+    end
+
+    test "returns nil if member does not exist in the sorted set" do
+      assert TestRepo.zrank("key", %MySchema{x: "unknown", y: true}) == {:ok, nil}
+    end
+
+    test "returns the rank of member and score in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrank("key", s, withscore: true) == {:ok, [0, 1]}
+      assert TestRepo.zrank("key", s2, withscore: true) == {:ok, [1, 2]}
+      assert TestRepo.zrank("key", s3, withscore: true) == {:ok, [2, 3]}
+    end
+  end
+
+  describe "zrevrank" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 2, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 3, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "returns the rank of member in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrevrank("key", s) == {:ok, 2}
+      assert TestRepo.zrevrank("key", s2) == {:ok, 1}
+      assert TestRepo.zrevrank("key", s3) == {:ok, 0}
+    end
+
+    test "returns nil if member does not exist in the sorted set" do
+      assert TestRepo.zrevrank("key", %MySchema{x: "unknown", y: true}) == {:ok, nil}
+    end
+
+    test "returns the rank of member and score in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrevrank("key", s, withscore: true) == {:ok, [2, 1]}
+      assert TestRepo.zrevrank("key", s2, withscore: true) == {:ok, [1, 2]}
+      assert TestRepo.zrevrank("key", s3, withscore: true) == {:ok, [0, 3]}
+    end
+  end
+
+  describe "zrange" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 2, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 3, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "returns the specified range of elements in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrange("key", 0, 1) == {:ok, [s, s2]}
+      assert TestRepo.zrange("key", 0, -1) == {:ok, [s, s2, s3]}
+    end
+
+    test "returns the specified range of elements in the sorted set stored at key with score", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrange("key", 0, 1, withscores: true) == {:ok, [[s, 1], [s2, 2]]}
+      assert TestRepo.zrange("key", 0, -1, withscores: true) == {:ok, [[s, 1], [s2, 2], [s3, 3]]}
+    end
+
+    test "returns the reversed specified range of elements in the sorted set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zrange("key", 0, 1, rev: true) == {:ok, [s3, s2]}
+      assert TestRepo.zrange("key", 0, 1, rev: true) == {:ok, [s3, s2]}
+      assert TestRepo.zrange("key", 1, 2, withscores: true, rev: true) == {:ok, [[s2, 2], [s, 1]]}
+    end
+
+    test "returns the specified score range of elements in the stored set stored at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      s0 = %MySchema{x: "test0", y: true}
+      TestRepo.zadd("key", 0, s0)
+      assert TestRepo.zrange("key", 1, 3, byscore: true) == {:ok, [s, s2, s3]}
+    end
+  end
+
+  describe "zremrangebyscore" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2", "key3"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 20, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 30, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "removes all elements in the sorted set stored at key with score between min and max", %{
+      schema3: s3
+    } do
+      assert TestRepo.zremrangebyscore("key", 1, 20) == {:ok, 2}
+      assert TestRepo.zrange("key", 0, -1) == {:ok, [s3]}
+    end
+  end
+
+  describe "zremrangebyrank" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2", "key3"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 20, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 30, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "removes all elements in the sorted set stored at key with rank between start and stop",
+         %{schema3: s3} do
+      assert TestRepo.zremrangebyrank("key", 0, 1) == {:ok, 2}
+      assert TestRepo.zrange("key", 0, -1) == {:ok, [s3]}
+    end
+  end
+
+  describe "zscore" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2", "key3"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 20, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 30, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "returns the score of member in the sorted set at key", %{
+      schema: s,
+      schema2: s2,
+      schema3: s3
+    } do
+      assert TestRepo.zscore("key", s) == {:ok, 1}
+      assert TestRepo.zscore("key", s2) == {:ok, 20}
+      assert TestRepo.zscore("key", s3) == {:ok, 30}
+    end
+
+    test "returns nil if member does not exist in the sorted set" do
+      assert TestRepo.zscore("key", %MySchema{x: "unknown", y: true}) == {:ok, nil}
+    end
+  end
+
+  describe "zincrby" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+
+      {:ok, %{schema: schema}}
+    end
+
+    test "increments the score of member in the sorted set stored at key by increment", %{
+      schema: s
+    } do
+      assert TestRepo.zincrby("key", 2, s) == {:ok, 3}
+    end
+
+    test "returns incremented score if member does not exist in the sorted set" do
+      assert TestRepo.zincrby("key2", 2, %MySchema{x: "unknown", y: true}) == {:ok, 2}
+    end
+  end
+
+  describe "zcount" do
+    setup do
+      on_exit(fn ->
+        TestRepo.del(["key", "key2", "key3"])
+      end)
+
+      schema = %MySchema{x: "test", y: true}
+      TestRepo.zadd("key", 1, schema)
+      schema2 = %MySchema{x: "test2", y: true}
+      TestRepo.zadd("key", 20, schema2)
+      schema3 = %MySchema{x: "test3", y: true}
+      TestRepo.zadd("key", 30, schema3)
+      {:ok, %{schema: schema, schema2: schema2, schema3: schema3}}
+    end
+
+    test "returns the number of elements in the sorted set at key with a score between min and max" do
+      assert TestRepo.zcount("key", 1, 20) == {:ok, 2}
+      assert TestRepo.zcount("key", 1, 30) == {:ok, 3}
+      assert TestRepo.zcount("key", 1, 40) == {:ok, 3}
+    end
+  end
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

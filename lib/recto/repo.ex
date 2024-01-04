@@ -6,10 +6,7 @@ defmodule Recto.Repo do
     quote bind_quoted: [opts: opts] do
       @behaviour Recto.Repo
 
-      alias Recto.Query.Binary
-      alias Recto.Query.Common
-      alias Recto.Query.List
-      alias Recto.Query.Set
+      alias Recto.Query
 
       # TODO: compile time check for adapter
       otp_app = Keyword.fetch!(opts, :otp_app)
@@ -20,9 +17,11 @@ defmodule Recto.Repo do
       end
 
       if Code.ensure_compiled(adapter) != {:module, adapter} do
-        raise ArgumentError, "adapter #{inspect adapter} was not compiled, " <>
-                             "ensure it is correct and it is included as a project dependency"
+        raise ArgumentError,
+              "adapter #{inspect(adapter)} was not compiled, " <>
+                "ensure it is correct and it is included as a project dependency"
       end
+
       # TODO end
 
       @otp_app otp_app
@@ -52,24 +51,24 @@ defmodule Recto.Repo do
 
       # stop supervisor
 
-
-#      @compile {:inline, get_dynamic_repo: 0}
-#
-#      def get_dynamic_repo() do
-#        dbg()
-#        Process.get({__MODULE__, :dynamic_repo}, @default_dynamic_repo)
-#      end
-#
-#      def put_dynamic_repo(dynamnic) when is_atom(dynamnic) or is_pid(dynamnic) do
-#        Process.put({__MODULE__, :dynamic_repo}, dynamnic) || @default_dynamic_repo
-#      end
+      #      @compile {:inline, get_dynamic_repo: 0}
+      #
+      #      def get_dynamic_repo() do
+      #        dbg()
+      #        Process.get({__MODULE__, :dynamic_repo}, @default_dynamic_repo)
+      #      end
+      #
+      #      def put_dynamic_repo(dynamnic) when is_atom(dynamnic) or is_pid(dynamnic) do
+      #        Process.put({__MODULE__, :dynamic_repo}, dynamnic) || @default_dynamic_repo
+      #      end
 
       # Binary
 
       def set(key, schema, opts \\ []) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        case adapter.command(adapter, Binary.to_set_query(key, data, opts)) do
+
+        case adapter.command(adapter, Query.to_set_query(key, data, opts)) do
           success = {:ok, "OK"} -> success
           other -> {:error, other}
         end
@@ -77,8 +76,10 @@ defmodule Recto.Repo do
 
       def get(key, opts \\ []) do
         adapter = find_adapter()
-        case adapter.command(adapter, Binary.to_get_query(key)) do
-          {:ok, nil} -> {:ok, nil}
+
+        case adapter.command(adapter, Query.to_get_query(key)) do
+          {:ok, nil} ->
+            {:ok, nil}
 
           {:ok, binary} ->
             # TODO: check schema type
@@ -93,7 +94,8 @@ defmodule Recto.Repo do
 
       def expire(key, seconds, opts \\ []) do
         adapter = find_adapter()
-        case adapter.command(adapter, Common.to_expire_query(key, seconds, opts)) do
+
+        case adapter.command(adapter, Query.to_expire_query(key, seconds, opts)) do
           {:ok, 1} -> :ok
           other -> {:error, other}
         end
@@ -101,7 +103,8 @@ defmodule Recto.Repo do
 
       def exists(keys) do
         adapter = find_adapter()
-        case adapter.command(adapter, Common.to_exists_query(keys)) do
+
+        case adapter.command(adapter, Query.to_exists_query(keys)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
@@ -109,7 +112,8 @@ defmodule Recto.Repo do
 
       def del(keys) do
         adapter = find_adapter()
-        case adapter.command(adapter, Common.to_del_query(keys)) do
+
+        case adapter.command(adapter, Query.to_del_query(keys)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
@@ -120,7 +124,8 @@ defmodule Recto.Repo do
       def rpush(key, schema) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        case adapter.command(adapter, List.to_rpush_query(key, data)) do
+
+        case adapter.command(adapter, Query.to_rpush_query(key, data)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
@@ -128,7 +133,8 @@ defmodule Recto.Repo do
 
       def lpop(key) do
         adapter = find_adapter()
-        case adapter.command(adapter, List.to_lpop_query(key)) do
+
+        case adapter.command(adapter, Query.to_lpop_query(key)) do
           success = {:ok, nil} ->
             success
 
@@ -142,12 +148,13 @@ defmodule Recto.Repo do
 
       def lrange(key, start, stop) do
         adapter = find_adapter()
-        case adapter.command(adapter, List.to_lrange_query(key, start, stop)) do
+
+        case adapter.command(adapter, Query.to_lrange_query(key, start, stop)) do
           success = {:ok, nil} ->
             success
 
           {:ok, values} ->
-            {:ok, Enum.map(values, &(:erlang.binary_to_term(&1)))}
+            {:ok, Enum.map(values, &:erlang.binary_to_term(&1))}
 
           other ->
             {:error, other}
@@ -158,9 +165,10 @@ defmodule Recto.Repo do
 
       def smembers(key) do
         adapter = find_adapter()
-        case adapter.command(adapter, Set.to_smembers_query(key)) do
+
+        case adapter.command(adapter, Query.to_smembers_query(key)) do
           {:ok, values} ->
-            {:ok, Enum.map(values, &(:erlang.binary_to_term(&1)))}
+            {:ok, Enum.map(values, &:erlang.binary_to_term(&1))}
 
           other ->
             {:error, other}
@@ -170,7 +178,8 @@ defmodule Recto.Repo do
       def sadd(key, schema) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        case adapter.command(adapter, Set.to_sadd_query(key, data)) do
+
+        case adapter.command(adapter, Query.to_sadd_query(key, data)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
@@ -179,7 +188,8 @@ defmodule Recto.Repo do
       def srem(key, schema) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        case adapter.command(adapter, Set.to_srem_query(key, data)) do
+
+        case adapter.command(adapter, Query.to_srem_query(key, data)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
@@ -188,7 +198,8 @@ defmodule Recto.Repo do
       def sismember(key, schema) do
         adapter = find_adapter()
         data = :erlang.term_to_binary(schema)
-        case adapter.command(adapter, Set.to_sismember_query(key, data)) do
+
+        case adapter.command(adapter, Query.to_sismember_query(key, data)) do
           {:ok, 0} -> {:ok, false}
           {:ok, 1} -> {:ok, true}
           other -> {:error, other}
@@ -197,12 +208,130 @@ defmodule Recto.Repo do
 
       def scard(key) do
         adapter = find_adapter()
-        case adapter.command(adapter, Set.to_scard_query(key)) do
+
+        case adapter.command(adapter, Query.to_scard_query(key)) do
           success = {:ok, num} -> success
           other -> {:error, other}
         end
       end
 
+      # SortedSet
+
+      def zadd(key, score, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zadd_query(key, score, data)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def zrem(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zrem_query(key, data)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def zrank(key, schema, opts \\ []) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zrank_query(key, data, opts)) do
+          {:ok, nil} -> {:ok, nil}
+          # if specified WITHSCORE option, returns rank and score string
+          {:ok, [rank, score]} -> {:ok, [rank, String.to_integer(score)]}
+          {:ok, rank} -> {:ok, rank}
+          other -> {:error, other}
+        end
+      end
+
+      def zrevrank(key, schema, opts \\ []) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zrevrank_query(key, data, opts)) do
+          {:ok, nil} -> {:ok, nil}
+          # if specified WITHSCORE option, returns rank and score string
+          {:ok, [rank, score]} -> {:ok, [rank, String.to_integer(score)]}
+          {:ok, rank} -> {:ok, rank}
+          other -> {:error, other}
+        end
+      end
+
+      def zrange(key, s_pos, e_pos, opts \\ []) do
+        adapter = find_adapter()
+
+        case adapter.command(adapter, Query.to_zrange_query(key, s_pos, e_pos, opts)) do
+          {:ok, values} ->
+            case Keyword.get(opts, :withscores, false) do
+              false ->
+                {:ok, Enum.map(values, &:erlang.binary_to_term(&1))}
+
+              true ->
+                {:ok,
+                 Enum.chunk_every(values, 2)
+                 |> Enum.map(fn
+                   [value, score] -> [:erlang.binary_to_term(value), String.to_integer(score)]
+                 end)}
+            end
+
+          other ->
+            {:error, other}
+        end
+      end
+
+      def zremrangebyscore(key, min, max) do
+        adapter = find_adapter()
+
+        case adapter.command(adapter, Query.to_zremrangebyscore_query(key, min, max)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def zremrangebyrank(key, s_pos, e_pos) do
+        adapter = find_adapter()
+
+        case adapter.command(adapter, Query.to_zremrangebyrank_query(key, s_pos, e_pos)) do
+          success = {:ok, num} -> success
+          other -> {:error, other}
+        end
+      end
+
+      def zscore(key, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zscore_query(key, data)) do
+          {:ok, nil} -> {:ok, nil}
+          {:ok, score} -> {:ok, String.to_integer(score)}
+          other -> {:error, other}
+        end
+      end
+
+      def zincrby(key, score, schema) do
+        adapter = find_adapter()
+        data = :erlang.term_to_binary(schema)
+
+        case adapter.command(adapter, Query.to_zincrby_query(key, score, data)) do
+          {:ok, score} -> {:ok, String.to_integer(score)}
+          other -> {:error, other}
+        end
+      end
+
+      def zcount(key, min, max) do
+        adapter = find_adapter()
+
+        case adapter.command(adapter, Query.to_zcount_query(key, min, max)) do
+          {:ok, num} -> {:ok, num}
+          other -> {:error, other}
+        end
+      end
 
       defp find_adapter() do
         repo = @default_dynamic_repo
@@ -255,7 +384,11 @@ defmodule Recto.Adapter do
   """
   @callback init(config :: Keyword.t()) :: {:ok, :supervisor.child_spec(), opts :: Keyword.t()}
 
-  @callback command(connection :: GenServer.server(), command :: [String.Chars.t()], opts :: Keyword.t()) ::
+  @callback command(
+              connection :: GenServer.server(),
+              command :: [String.Chars.t()],
+              opts :: Keyword.t()
+            ) ::
               {:ok, any()}
               | {:error, atom()}
 end
