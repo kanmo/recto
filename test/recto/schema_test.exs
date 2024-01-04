@@ -6,24 +6,33 @@ defmodule Recto.SchemaTest do
 
     @schema_version "1.0.0"
     schema "test schema" do
-      field :id,  :integer
-      field :name, :string, default: "fruit"
-      field :age, :integer
-      field :array, {:array, :string}
-      field :map, {:map, :any}
+      field(:id, :integer)
+      field(:name, :string, default: "fruit")
+      field(:age, :integer)
+      field(:array, {:array, :string})
+      field(:map, {:map, :any})
 
       timestamps()
     end
   end
 
-#  @moduletag :capture_log
+  #  @moduletag :capture_log
 
-#  doctest Schema
+  #  doctest Schema
 
   test "schema metadata" do
     assert Schema.__schema__(:version) == "1.0.0"
     assert Schema.__schema__(:source) == "test schema"
-    assert Schema.__schema__(:fields) == [:id, :name, :age, :array, :map, :inserted_at, :updated_at]
+
+    assert Schema.__schema__(:fields) == [
+             :id,
+             :name,
+             :age,
+             :array,
+             :map,
+             :inserted_at,
+             :updated_at
+           ]
   end
 
   test "types metadata" do
@@ -52,7 +61,14 @@ defmodule Recto.SchemaTest do
   end
 
   test "schema attributes" do
-    schema = %Schema{id: 1, name: "John", age: 30, array: ["a", "b", "c"], map: %{a: 1, b: 2, c: 3}}
+    schema = %Schema{
+      id: 1,
+      name: "John",
+      age: 30,
+      array: ["a", "b", "c"],
+      map: %{a: 1, b: 2, c: 3}
+    }
+
     assert schema.id == 1
     assert schema.name == "John"
     assert schema.age == 30
@@ -64,7 +80,6 @@ defmodule Recto.SchemaTest do
     assert %Schema{}.name == "fruit"
   end
 
-
   defmodule DataValue do
     defstruct [:id, :name]
   end
@@ -73,7 +88,7 @@ defmodule Recto.SchemaTest do
     use Recto.Schema
 
     schema "module value schema" do
-      field :data, DataValue
+      field(:data, DataValue)
     end
   end
 
@@ -88,7 +103,7 @@ defmodule Recto.SchemaTest do
         use Recto.Schema
 
         schema "invalid field schema" do
-          field :name, {:nappa}
+          field(:name, {:nappa})
         end
       end
     end
@@ -98,19 +113,19 @@ defmodule Recto.SchemaTest do
         use Recto.Schema
 
         schema "unknown type schema" do
-          field :name, OMG
+          field(:name, OMG)
         end
       end
     end
 
     assert_raise ArgumentError,
-~r/schema Recto.SchemaTest.Schema is not a valid type for field :name/,
-    fn ->
+                 ~r/schema Recto.SchemaTest.Schema is not a valid type for field :name/,
+                 fn ->
                    defmodule SchemaInvalidFieldType do
                      use Recto.Schema
 
                      schema "invalid field schema" do
-                       field :name, Schema
+                       field(:name, Schema)
                      end
                    end
                  end
@@ -120,7 +135,7 @@ defmodule Recto.SchemaTest do
         use Recto.Schema
 
         schema "invalid type schema" do
-          field :name, :jsonb
+          field(:name, :jsonb)
         end
       end
     end
@@ -130,12 +145,11 @@ defmodule Recto.SchemaTest do
         use Recto.Schema
 
         schema "invalid field schema" do
-          field :name, {:array, :jsonb}
+          field(:name, {:array, :jsonb})
         end
       end
     end
   end
-
 
   test "invalid option for field" do
     assert_raise ArgumentError, ~s/invalid option :starts_on for field\/3/, fn ->
@@ -143,10 +157,9 @@ defmodule Recto.SchemaTest do
         use Recto.Schema
 
         schema "invalid option schema" do
-          field :count, :integer, starts_on: 3
+          field(:count, :integer, starts_on: 3)
         end
       end
     end
   end
 end
-

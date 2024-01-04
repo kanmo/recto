@@ -24,67 +24,70 @@ defmodule Recto.Schema do
   end
 
   defp schema(caller, source, block) do
-    prelude = quote do
-      if line = Module.get_attribute(__MODULE__, :recto_schema_defined) do
-        raise "schema already defined for #{inspect(__MODULE__)} on line: #{line}"
+    prelude =
+      quote do
+        if line = Module.get_attribute(__MODULE__, :recto_schema_defined) do
+          raise "schema already defined for #{inspect(__MODULE__)} on line: #{line}"
+        end
+
+        @recto_schema_defined unquote(caller.line)
+
+        # TODO after compile
+        # @after_compile Recto.Schema
+        Module.register_attribute(__MODULE__, :recto_struct_fields, accumulate: true)
+
+        source = unquote(source)
+        version = @schema_version
+
+        # Fix warnings
+        _ = @timestamps_opts
+
+        meta = %Metadata{
+          state: :built,
+          source: source,
+          version: version,
+          schema: __MODULE__
+        }
+
+        Module.put_attribute(__MODULE__, :recto_struct_fields, {:__meta__, meta})
+
+        try do
+          import Recto.Schema
+          unquote(block)
+        after
+          :ok
+        end
       end
 
-      @recto_schema_defined unquote(caller.line)
+    postlude =
+      quote unquote: false do
+        autogenerate = @recto_autogenerate |> Enum.reverse()
+        autoupdate = @recto_autoupdate |> Enum.reverse()
+        fields = @recto_fields |> Enum.reverse()
+        loaded = Recto.Schema.__loaded__(__MODULE__, @recto_struct_fields)
 
-      # TODO after compile
-      # @after_compile Recto.Schema
-      Module.register_attribute(__MODULE__, :recto_struct_fields, accumulate: true)
+        defstruct Enum.reverse(@recto_struct_fields)
 
-      source = unquote(source)
-      version = @schema_version
+        def __schema__(:version), do: unquote(version)
+        def __schema__(:source), do: unquote(Macro.escape(source))
+        def __schema__(:autogenerate), do: unquote(Macro.escape(autogenerate))
+        def __schema__(:autoupdate), do: unquote(Macro.escape(autoupdate))
 
-      # Fix warnings
-      _ = @timestamps_opts
-
-      meta = %Metadata{
-        state: :built,
-        source: source,
-        version: version,
-        schema: __MODULE__
-      }
-
-      Module.put_attribute(__MODULE__, :recto_struct_fields, {:__meta__, meta})
-
-      try do
-        import Recto.Schema
-        unquote(block)
-      after
-        :ok
-      end
-    end
-
-    postlude = quote unquote: false do
-      autogenerate = @recto_autogenerate |> Enum.reverse()
-      autoupdate = @recto_autoupdate |> Enum.reverse()
-      fields = @recto_fields |> Enum.reverse()
-      loaded = Recto.Schema.__loaded__(__MODULE__, @recto_struct_fields)
-
-      defstruct Enum.reverse(@recto_struct_fields)
-
-      def __schema__(:version), do: unquote(version)
-      def __schema__(:source), do: unquote(Macro.escape(source))
-      def __schema__(:autogenerate), do: unquote(Macro.escape(autogenerate))
-      def __schema__(:autoupdate), do: unquote(Macro.escape(autoupdate))
-      def __schema__(:autogenerate_fields),
+        def __schema__(:autogenerate_fields),
           do: unquote(Enum.flat_map(autogenerate, &elem(&1, 0)))
 
-      def __schema__(:fields) do
-        unquote(Enum.map(fields, &elem(&1, 0)))
-      end
+        def __schema__(:fields) do
+          unquote(Enum.map(fields, &elem(&1, 0)))
+        end
 
-      def __schema__(:loaded) do
-        unquote(Macro.escape(loaded))
-      end
+        def __schema__(:loaded) do
+          unquote(Macro.escape(loaded))
+        end
 
-      for {args, body} <- Recto.Schema.__field_schema__(fields) do
-        def __schema__(unquote_splicing(args)), do: unquote(body)
+        for {args, body} <- Recto.Schema.__field_schema__(fields) do
+          def __schema__(unquote_splicing(args)), do: unquote(body)
+        end
       end
-    end
 
     quote do
       unquote(prelude)
@@ -96,7 +99,7 @@ defmodule Recto.Schema do
 
   defmacro version() do
     quote do
-      Recto.Schema.__meta__.version
+      Recto.Schema.__meta__().version
     end
   end
 
@@ -107,7 +110,7 @@ defmodule Recto.Schema do
   end
 
   defmacro timestamps(opts \\ []) do
-    quote bind_quoted: binding() do
+    quote bind_quoted: [opts: opts] do
       Recto.Schema.__define_timestamps__(__MODULE__, Keyword.merge(@timestamps_opts, opts))
     end
   end
@@ -117,6 +120,7 @@ defmodule Recto.Schema do
     case Map.new([{:__struct__, mod} | struct_fields]) do
       %{__meta__: meta} = struct ->
         %{struct | __meta__: Map.put(meta, :state, :loaded)}
+
       struct ->
         struct
     end
@@ -124,8 +128,8 @@ defmodule Recto.Schema do
 
   @doc false
   def __field__(mod, name, type, opts) do
-     type = check_field_type!(mod, name, type)
-     check_options!(type, opts, @field_opts, "field/3")
+    type = check_field_type!(mod, name, type)
+    check_options!(type, opts, @field_opts, "field/3")
 
     define_field(mod, name, type, opts)
   end
@@ -151,10 +155,10 @@ defmodule Recto.Schema do
 
     if updated_at do
       Recto.Schema.__field__(mod, updated_at, type, [])
-      Module.put_attribute(mod, :recto_autoupdate,  {[updated_at], autogen})
+      Module.put_attribute(mod, :recto_autoupdate, {[updated_at], autogen})
     end
 
-    with [_ | _]  = fields <- Enum.filter([inserted_at, updated_at], & &1) do
+    with [_ | _] = fields <- Enum.filter([inserted_at, updated_at], & &1) do
       Module.put_attribute(mod, :recto_autogenerate, {fields, autogen})
     end
 
@@ -163,6 +167,7 @@ defmodule Recto.Schema do
 
   defp define_field(mod, name, type, opts) do
     fields = Module.get_attribute(mod, :recto_struct_fields)
+
     if List.keyfind(fields, name, 0) do
       raise ArgumentError,
             "field #{name} already defined for #{inspect(mod)}"
@@ -204,7 +209,8 @@ defmodule Recto.Schema do
   end
 
   # TODO: utc_datetime
-  defp base_type?(atom), do: atom in [:integer, :string, :boolean, :any, :map, :array, :naive_datetime]
+  defp base_type?(atom),
+    do: atom in [:integer, :string, :boolean, :any, :map, :array, :naive_datetime]
 
   defp composite?({composite, _} = type, name) do
     if composite in [:array, :map] do
@@ -212,7 +218,7 @@ defmodule Recto.Schema do
     else
       raise ArgumentError,
             "invalid or unknown composite #{inspect(type)} for field #{inspect(name)}. " <>
-            "Did you mean to use :array or :map as first element of the tuple instead?"
+              "Did you mean to use :array or :map as first element of the tuple instead?"
     end
   end
 
@@ -232,5 +238,4 @@ defmodule Recto.Schema do
               "invalid option #{inspect(k)} for #{fun_arity}"
     end
   end
-
 end

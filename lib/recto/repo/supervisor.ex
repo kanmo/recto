@@ -11,6 +11,7 @@ defmodule Recto.Repo.Supervisor do
 
   def runtime_config(type, repo, otp_app, _opts) do
     config = Application.get_env(otp_app, repo, [])
+
     case repo_init(type, repo, config) do
       {:ok, config} ->
         {_url, config} = Keyword.pop(config, :host)
@@ -37,7 +38,7 @@ defmodule Recto.Repo.Supervisor do
   def init({name, repo, otp_app, adapter, opts}) do
     case runtime_config(:supervisor, repo, otp_app, opts) do
       {:ok, opts} ->
-        opts = Keyword.merge(opts, [name: adapter])
+        opts = Keyword.merge(opts, name: adapter)
         {:ok, adapter_spec} = adapter.init(opts)
         child_spec = wrap_child_spec(adapter_spec, [name, adapter])
         Supervisor.init([child_spec], strategy: :one_for_one, max_restarts: 0)
