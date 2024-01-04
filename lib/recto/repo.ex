@@ -8,21 +8,7 @@ defmodule Recto.Repo do
 
       alias Recto.Query
 
-      # TODO: compile time check for adapter
-      otp_app = Keyword.fetch!(opts, :otp_app)
-      adapter = opts[:adapter]
-
-      unless adapter do
-        raise ArgumentError, "missing :adapter option"
-      end
-
-      if Code.ensure_compiled(adapter) != {:module, adapter} do
-        raise ArgumentError,
-              "adapter #{inspect(adapter)} was not compiled, " <>
-                "ensure it is correct and it is included as a project dependency"
-      end
-
-      # TODO end
+      {otp_app, adapter} = Recto.Repo.Supervisor.compile_config(__MODULE__, opts)
 
       @otp_app otp_app
       @adapter adapter

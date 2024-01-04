@@ -9,14 +9,39 @@ defmodule Recto.Repo.Supervisor do
     Supervisor.start_link(__MODULE__, {name, repo, otp_app, adapter, opts}, sup_opts)
   end
 
-  def runtime_config(type, repo, otp_app, _opts) do
+  def compile_config(_repo, opts) do
+    otp_app = Keyword.fetch!(opts, :otp_app)
+    adapter = opts[:adapter]
+
+    unless adapter do
+      raise ArgumentError, "missing :adapter option on use Recto.Repo"
+    end
+
+    if Code.ensure_compiled(adapter) != {:module, adapter} do
+      raise ArgumentError, "adapter #{inspect adapter} not compiled, " <>
+                           "ensure it is correct and it is included as a project dependency"
+
+    end
+
+    {otp_app, adapter}
+  end
+
+  def runtime_config(type, repo, otp_app, opts) do
     config = Application.get_env(otp_app, repo, [])
+    config = config |> Keyword.merge(opts)
 
     case repo_init(type, repo, config) do
       {:ok, config} ->
-        {_url, config} = Keyword.pop(config, :host)
-        # TODO: parse_url
-        #            {:ok, Keyword.merge(config, parse_url(url || ""))}
+        host = Keyword.fetch!(config, :host)
+        unless is_binary(host) do
+          raise ArgumentError, "configuration setting :host must be a string, got: #{inspect host}"
+        end
+
+        port = Keyword.fetch!(config, :port)
+        unless is_integer(port) and port > 0 and port < 65536 do
+          raise ArgumentError, "configuration setting :port must be an integer between 1 and 65535, got: #{inspect port}"
+        end
+
         {:ok, config}
 
       :ignore ->
